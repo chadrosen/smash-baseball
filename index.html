@@ -1,0 +1,1902 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smash Baseball</title>
+<style>
+  :root {
+    --blue: #ea580c;
+    --blue-dark: #7c2d12;
+    --red: #9333ea;
+    --red-dark: #581c87;
+    --dirt: #c98a4b;
+    --grass: #3f9142;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(#87ceeb, #bfe8f5 60%, #bfe8f5);
+    font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 12px 16px;
+    user-select: none;
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 200px;
+    flex-shrink: 0;
+  }
+
+  .history-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .history-title {
+    margin: 4px 0 0;
+    font-size: 1.2rem;
+    color: #1a2b45;
+    text-shadow: 1px 1px 0 #fff;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  .history-list {
+    width: 100%;
+    max-height: min(78vw, 84vh, 720px);
+    overflow-y: auto;
+    background: #14213d;
+    border: 5px solid #f5a623;
+    border-radius: 16px;
+    padding: 10px 12px;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .history-entry {
+    font-size: 0.78rem;
+    color: #dbe4f0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 5px;
+  }
+  .history-entry:last-child { border-bottom: none; }
+
+  .game-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  h1 {
+    margin: 4px 0 0;
+    font-size: 1.9rem;
+    color: #1a2b45;
+    text-shadow: 2px 2px 0 #fff;
+    letter-spacing: 1px;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  .scoreboard {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: #14213d;
+    border: 5px solid #f5a623;
+    border-radius: 16px;
+    padding: 16px 20px;
+    color: white;
+    font-size: 1.3rem;
+    width: 100%;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.2);
+  }
+  .score-team { text-align: center; }
+  .score-team .name { font-size: 1rem; opacity: 0.85; }
+  .score-team .runs { font-size: 2.6rem; font-weight: bold; line-height: 1; }
+  .score-team.blue .runs { color: #fdba74; }
+  .score-team.red .runs { color: #d8b4fe; }
+  .score-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-top: 2px solid rgba(255,255,255,0.15); padding-top: 12px; }
+  .outs { font-size: 1rem; text-align: center; }
+  .outs .dots {
+    display: flex;
+    gap: 6px;
+    margin: 6px auto 0;
+    justify-content: flex-start;
+    width: 98px; /* fits the widest row (4 ball dots) so every row's first dot lines up */
+  }
+  .out-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #333; border: 3px solid #999;
+  }
+  .out-dot.filled { background: #f5a623; border-color: #fff; }
+  .strike-dot.filled { background: #e74c3c; border-color: #fff; }
+  .ball-dot.filled { background: #4dabf7; border-color: #fff; }
+
+  .lineups {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  .lineup-team {
+    background: #14213d;
+    border: 3px solid #576375;
+    border-radius: 10px;
+    padding: 8px 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .lineup-team.active {
+    border-color: #f5a623;
+    box-shadow: 0 0 10px 1px rgba(245, 166, 35, 0.5);
+  }
+  .lineup-title {
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-align: center;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .lineup-title.blue { color: var(--blue); }
+  .lineup-title.red  { color: var(--red); }
+  .lineup-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0.72rem;
+    color: #cbd5e1;
+  }
+  .lineup-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+    padding: 1px 0;
+  }
+  .lineup-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lineup-pos {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    opacity: 0.7;
+  }
+  .lineup-list li.current {
+    color: #ffd93d;
+    font-weight: bold;
+  }
+  .lineup-list li.current .lineup-pos { opacity: 1; }
+
+  .stands {
+    position: relative;
+    width: min(78vw, 84vh, 720px);
+    height: 42px;
+    background: linear-gradient(#5b6472, #3b4250);
+    border: 6px solid #1a2b45;
+    border-bottom: 3px solid #1a2b45;
+    border-radius: 14px 14px 0 0;
+    overflow: hidden;
+  }
+  .press-box {
+    position: absolute;
+    top: 3px; left: 50%;
+    transform: translateX(-50%);
+    width: 58px; height: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: linear-gradient(#2c3440, #1a2028);
+    border: 2px solid #0d1117;
+    border-radius: 5px;
+    z-index: 2;
+  }
+  .press-window {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    justify-content: center;
+    background: #a8d8ea;
+    border-radius: 3px;
+    padding: 1px 3px 0;
+    height: 12px;
+  }
+  .press-reporter {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #f1c27d;
+    border: 1px solid #33261c;
+  }
+  .press-label {
+    font-size: 0.45rem;
+    color: #f5a623;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+  .fan {
+    position: absolute;
+    bottom: 3px;
+    width: 9px;
+    animation: fan-bob 1.6s ease-in-out infinite;
+  }
+  .fan-head {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #f1c27d; border: 1px solid #33261c;
+    margin: 0 auto;
+  }
+  .fan-body {
+    width: 9px; height: 7px;
+    border-radius: 3px 3px 0 0;
+    margin: -1px auto 0;
+  }
+  @keyframes fan-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+  }
+
+  .field {
+    position: relative;
+    width: min(78vw, 84vh, 720px);
+    height: min(78vw, 84vh, 720px);
+    background: radial-gradient(circle at 50% 100%, var(--grass) 0%, var(--grass) 55%, #2f7a33 56%, #2f7a33 100%);
+    border-radius: 0 0 16px 16px;
+    overflow: hidden;
+    border: 6px solid #1a2b45;
+    border-top: none;
+  }
+  /* Diamond geometry: center (mound) at 50%,55%; bases sit on the N/E/S/W
+     points 36% away, so the dirt square (rotated 45deg, side = 36% * sqrt2)
+     has its corners exactly on the bases. */
+  .infield {
+    position: absolute;
+    left: 50%; top: 55%;
+    width: 50.9%; height: 50.9%;
+    transform: translate(-50%,-50%) rotate(45deg);
+    background: var(--dirt);
+    border: 3px solid #a56a34;
+  }
+  .base {
+    position: absolute;
+    width: 34px; height: 34px;
+    margin-left: -17px; margin-top: -17px;
+    background: #eee;
+    border: 4px solid #999;
+    transform: rotate(45deg);
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    z-index: 1;
+  }
+  .base.occupied {
+    background: #ffd93d;
+    border-color: #b8860b;
+    box-shadow: 0 0 18px 6px #ffd93d;
+  }
+  .base.first  { left: 86%; top: 55%; }
+  .base.second { left: 50%; top: 19%; }
+  .base.third  { left: 14%; top: 55%; }
+  .base.home   { left: 50%; top: 91%; background:#fff; }
+
+  .fence {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .fence path {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 0.8;
+    stroke-dasharray: 2.2 1.6;
+    opacity: 0.85;
+  }
+  .fence-label {
+    position: absolute;
+    left: 50%; top: 1%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #fff;
+    text-shadow: 1px 1px 0 #1a1a1a, -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a;
+    z-index: 1;
+  }
+
+  .dugout {
+    position: absolute;
+    top: 81%;
+    width: 15%; height: 10%;
+    background: linear-gradient(#4a5568, #2d3748);
+    border: 3px solid #1a1a1a;
+    border-radius: 8px;
+    z-index: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .dugout.blue { left: 3%; }
+  .dugout.red  { right: 3%; }
+  .dugout-roof {
+    height: 8px;
+    flex-shrink: 0;
+    background: var(--blue);
+  }
+  .dugout.red .dugout-roof { background: var(--red); }
+  .dugout-label {
+    flex-shrink: 0;
+    font-size: 0.42rem;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    line-height: 1.2;
+    padding: 1px 2px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dugout-bench {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-evenly;
+    flex: 1;
+    padding-bottom: 3px;
+  }
+  .bench-fan { width: 9px; }
+  .dugout-blue { background: var(--blue); }
+  .dugout-red  { background: var(--red); }
+
+  .runner {
+    position: absolute;
+    transform: translate(-50%, -95%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 2;
+  }
+  .runner.visible {
+    opacity: 1;
+    animation: runner-bob 0.3s ease-in-out infinite;
+  }
+  @keyframes runner-bob {
+    0%, 100% { transform: translate(-50%, -95%) translateY(0); }
+    50%      { transform: translate(-50%, -95%) translateY(-2px); }
+  }
+  .runner.first  { left: 86%; top: 55%; }
+  .runner.second { left: 50%; top: 19%; }
+  .runner.third  { left: 14%; top: 55%; }
+  .runner-head {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #f1c27d; border: 2px solid #33261c;
+    margin: 0 auto;
+  }
+  .runner-torso {
+    width: 14px; height: 14px;
+    background: var(--runner-color, #888);
+    border: 2px solid #1a1a1a;
+    border-radius: 4px;
+    margin: -1px auto 0;
+  }
+  .runner-legs {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    margin-top: -1px;
+  }
+  .runner-leg {
+    width: 4px; height: 8px;
+    background: #2b2b2b;
+    border-radius: 2px;
+    transform-origin: top center;
+  }
+  .runner.visible .runner-leg.left  { animation: run-leg-left 0.3s linear infinite; }
+  .runner.visible .runner-leg.right { animation: run-leg-right 0.3s linear infinite; }
+  @keyframes run-leg-left {
+    0%, 100% { transform: rotate(35deg); }
+    50%      { transform: rotate(-35deg); }
+  }
+  @keyframes run-leg-right {
+    0%, 100% { transform: rotate(-35deg); }
+    50%      { transform: rotate(35deg); }
+  }
+  .runner.tag-blue { --runner-color: var(--blue); }
+  .runner.tag-red  { --runner-color: var(--red); }
+
+  .fielder {
+    position: absolute;
+    transform: translate(-50%, -90%);
+    transition: left 0.6s ease, top 0.6s ease;
+    z-index: 1;
+  }
+  .fielder.left   { left: 25%; top: 16%; }
+  .fielder.center { left: 50%; top: 10%; }
+  .fielder.right  { left: 75%; top: 16%; }
+  .fielder.tag-blue { --runner-color: var(--blue); }
+  .fielder.tag-red  { --runner-color: var(--red); }
+  .fielder.catching { animation: catch-pop 0.3s ease; }
+  @keyframes catch-pop {
+    0%   { transform: translate(-50%, -90%) scale(1); }
+    50%  { transform: translate(-50%, -90%) scale(1.4); }
+    100% { transform: translate(-50%, -90%) scale(1); }
+  }
+
+  .catcher {
+    position: absolute;
+    left: 50%; top: 97%;
+    transform: translate(-50%, -70%);
+    z-index: 1;
+  }
+  .catcher.tag-blue { --runner-color: var(--blue); }
+  .catcher.tag-red  { --runner-color: var(--red); }
+  .catcher-body { position: relative; }
+  .catcher-glove {
+    position: absolute;
+    top: 11px; right: -2px;
+    width: 8px; height: 8px;
+    background: #8b5a2b;
+    border: 2px solid #5c3a1a;
+    border-radius: 50% 50% 50% 10%;
+  }
+  .catcher.catching .catcher-body { animation: catcher-catch-pop 0.3s ease; }
+  @keyframes catcher-catch-pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+
+  .mound {
+    position: absolute; left: 50%; top: 55%;
+    width: 46px; height: 46px; margin-left: -23px; margin-top: -23px;
+    background: #b3763f; border-radius: 50%; border: 3px solid #8a5a2c;
+  }
+
+  /* ---- little human players ---- */
+  .player {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: left 0.2s, top 0.2s;
+  }
+  .player.pos-pitcher { left: 50%; top: 55%; }
+  .player.pos-batter  { left: 39%; top: 91%; }
+  .player.pos-batter.lefty { left: 61%; }
+  .player.lefty .body-wrap { transform: scaleX(-1); }
+  .player.tag-blue { --team-color: var(--blue); }
+  .player.tag-red  { --team-color: var(--red); }
+
+  .charge-meter {
+    position: absolute;
+    top: -30px; left: 50%;
+    transform: translateX(-50%);
+    width: 64px; height: 12px;
+    background: rgba(0,0,0,0.35);
+    border: 2px solid #1a1a1a;
+    border-radius: 6px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .charge-meter.active { opacity: 1; }
+  .charge-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #8bd17c, #f5d033, #e74c3c);
+  }
+
+  .body-wrap { position: relative; width: 56px; height: 76px; }
+  .head {
+    position: relative;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #f1c27d; border: 3px solid #33261c;
+    margin: 0 auto;
+  }
+  .bangs {
+    display: none;
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 22px; height: 9px;
+    background: #7c4a24;
+    border: 2px solid #1a1a1a;
+    border-bottom: none;
+    border-radius: 11px 11px 4px 4px;
+    z-index: 1;
+  }
+  .player.girl .bangs { display: block; }
+  .eyes {
+    position: absolute;
+    top: 11px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+  }
+  .eye {
+    width: 4px; height: 4px;
+    background: #1a1a1a;
+    border-radius: 50%;
+  }
+  .mouth {
+    position: absolute;
+    bottom: 4px; left: 50%;
+    transform: translateX(-50%);
+    width: 10px; height: 5px;
+    border-bottom: 2px solid #1a1a1a;
+    border-radius: 0 0 6px 6px;
+  }
+  .hair-down {
+    display: none;
+    position: absolute;
+    top: -2px;
+    width: 8px; height: 32px;
+    background: #7c4a24;
+    border: 2px solid #1a1a1a;
+    z-index: 1;
+  }
+  .hair-down.left  { left: -6px;  border-radius: 8px 3px 6px 6px; }
+  .hair-down.right { right: -6px; border-radius: 3px 8px 6px 6px; }
+  .player.girl .hair-down { display: block; }
+  .hat {
+    position: absolute;
+    top: -12px; left: 50%;
+    transform: translateX(-50%);
+    width: 30px; height: 13px;
+    background: var(--team-color);
+    border: 3px solid #1a1a1a;
+    border-bottom: none;
+    border-radius: 15px 15px 0 0;
+    z-index: 2;
+  }
+  .hat::after {
+    content: '';
+    position: absolute;
+    bottom: -3px; right: -9px;
+    width: 16px; height: 6px;
+    background: var(--team-color);
+    border: 3px solid #1a1a1a;
+    border-radius: 0 0 12px 10px;
+  }
+  .torso {
+    width: 34px; height: 35px;
+    background: var(--team-color);
+    border: 3px solid #1a1a1a;
+    border-radius: 9px 9px 5px 5px;
+    margin: 0 auto;
+  }
+  .legs { display: flex; justify-content: center; gap: 5px; margin-top: -3px; }
+  .leg { width: 10px; height: 21px; background: #2b2b2b; border-radius: 3px; }
+  .arm {
+    position: absolute;
+    top: 28px;
+    width: 8px; height: 27px;
+    background: var(--team-color);
+    border: 2px solid #1a1a1a;
+    border-radius: 4px;
+    transform-origin: top center;
+  }
+  .arm.left  { left: 4px; }
+  .arm.right { right: 4px; }
+  .bat {
+    position: absolute;
+    top: 20px; right: -5px;
+    width: 6px; height: 42px;
+    background: #8b5a2b;
+    border-radius: 3px;
+    transform-origin: bottom center;
+    transform: rotate(-70deg);
+    z-index: 2;
+  }
+  .label {
+    margin-top: 5px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(0,0,0,0.55);
+    padding: 2px 9px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .position-tag {
+    margin-top: 2px;
+    font-size: 0.6rem;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(0,0,0,0.5);
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  .speech-bubble {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-bottom: 12px;
+    transform: translateX(-50%) scale(0.7);
+    background: #fff;
+    color: #1a1a1a;
+    padding: 8px 12px;
+    border-radius: 14px;
+    border: 3px solid #1a1a1a;
+    font-size: 0.95rem;
+    font-weight: bold;
+    width: max-content;
+    max-width: 190px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 6;
+  }
+  .speech-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -13px; left: 50%;
+    transform: translateX(-50%);
+    border-width: 13px 9px 0 9px;
+    border-style: solid;
+    border-color: #1a1a1a transparent transparent transparent;
+  }
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -8px; left: 50%;
+    transform: translateX(-50%);
+    border-width: 9px 6px 0 6px;
+    border-style: solid;
+    border-color: #fff transparent transparent transparent;
+  }
+  .speech-bubble.visible {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  .player.charging .arm.right {
+    transform: rotate(-50deg);
+    transition: transform 0.2s ease;
+  }
+
+  @keyframes pitch-throw {
+    0%   { transform: rotate(-50deg); }
+    45%  { transform: rotate(85deg); }
+    100% { transform: rotate(0deg); }
+  }
+  @keyframes pitch-lean {
+    0%   { transform: rotate(0deg); }
+    40%  { transform: rotate(-6deg); }
+    70%  { transform: rotate(8deg); }
+    100% { transform: rotate(0deg); }
+  }
+  .player.pitching .arm.right { animation: pitch-throw 0.4s ease; }
+  .player.pitching .torso     { animation: pitch-lean 0.4s ease; }
+
+  @keyframes bat-swing {
+    0%   { transform: rotate(-70deg); }
+    45%  { transform: rotate(75deg); }
+    100% { transform: rotate(-70deg); }
+  }
+  @keyframes swing-arms {
+    0%   { transform: rotate(0deg); }
+    45%  { transform: rotate(60deg); }
+    100% { transform: rotate(0deg); }
+  }
+  .player.swinging .bat        { animation: bat-swing 0.32s ease-out; }
+  .player.swinging .arm        { animation: swing-arms 0.32s ease-out; }
+
+  .ball {
+    position: absolute;
+    width: 20px; height: 20px;
+    left: 50%; top: 55%;
+    margin-left: -10px; margin-top: -10px;
+    background: white;
+    border-radius: 50%;
+    border: 2px solid #c0392b;
+    box-shadow: 0 0 6px rgba(0,0,0,0.4);
+    display: none;
+    z-index: 3;
+  }
+
+  .winner-banner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(0,0,0,0.65);
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .winner-banner.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .winner-trophy {
+    font-size: 4rem;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+    animation: trophy-bounce 0.7s ease;
+  }
+  @keyframes trophy-bounce {
+    0%   { transform: scale(0) rotate(-25deg); opacity: 0; }
+    60%  { transform: scale(1.25) rotate(10deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+  .winner-text {
+    font-size: 2.4rem;
+    font-weight: 900;
+    text-align: center;
+    color: #ffd93d;
+    text-shadow: 2px 2px 0 #1a1a1a, -1px -1px 0 #1a1a1a;
+    animation: homerun-pop 0.5s ease;
+  }
+  .winner-sub {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .status {
+    margin-top: 10px;
+    font-size: 1.6rem;
+    font-weight: bold;
+    min-height: 1.6em;
+    text-align: center;
+    color: #1a2b45;
+  }
+  .result-flash {
+    font-size: 2.2rem;
+    min-height: 1.6em;
+    font-weight: 900;
+    text-align: center;
+  }
+  .result-hit { color: #1a9e46; text-shadow: 1px 1px 0 #fff; }
+  .result-out { color: #c0392b; text-shadow: 1px 1px 0 #fff; }
+  .result-run { color: #f5a623; text-shadow: 1px 1px 0 #000; }
+  .result-ball { color: #1c7ed6; text-shadow: 1px 1px 0 #fff; }
+  .result-homerun {
+    color: #ffd93d;
+    text-shadow: 2px 2px 0 #c0392b, -1px -1px 0 #1a1a1a;
+    font-size: 1.15em;
+    animation: homerun-pop 0.4s ease;
+  }
+  @keyframes homerun-pop {
+    0%   { transform: scale(0.5) rotate(-4deg); }
+    60%  { transform: scale(1.15) rotate(2deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+
+  .controls {
+    margin-top: 10px;
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .key-hint {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: white;
+    box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+  }
+  .key-hint.blue { background: var(--blue); }
+  .key-hint.red { background: var(--red); }
+  kbd {
+    background: white;
+    color: #222;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: monospace;
+    font-size: 1.3rem;
+    box-shadow: 0 2px 0 #999;
+  }
+
+  .restart-btn {
+    margin-top: 12px;
+    padding: 14px 28px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 10px;
+    border: none;
+    background: #f5a623;
+    color: #1a2b45;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #c98216;
+  }
+  .restart-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #c98216; }
+
+  .settings-toggle {
+    margin-top: 10px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    background: #576375;
+    color: #fff;
+    cursor: pointer;
+  }
+  .settings-form {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: #14213d;
+    border: 4px solid #576375;
+    border-radius: 12px;
+    width: min(78vw, 84vh, 720px);
+  }
+  .settings-form.open { display: flex; }
+  .settings-team {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+  .settings-team:last-of-type { border-bottom: none; padding-bottom: 0; }
+  .settings-team-title {
+    width: 100%;
+    font-weight: bold;
+    font-size: 0.95rem;
+    color: #fff;
+  }
+  .settings-team-title.blue { color: var(--blue); }
+  .settings-team-title.red  { color: var(--red); }
+  .settings-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.75rem;
+    color: #cbd5e1;
+    font-weight: bold;
+  }
+  .settings-form input[type="text"] {
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 2px solid #576375;
+    font-size: 0.85rem;
+    width: 130px;
+  }
+  .settings-form input[type="color"] {
+    width: 50px;
+    height: 30px;
+    padding: 0;
+    border: 2px solid #576375;
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+  }
+  .apply-settings-btn {
+    align-self: flex-start;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    background: #f5a623;
+    color: #1a2b45;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h1>⚾ Smash<br>Baseball</h1>
+  <div class="scoreboard">
+    <div class="score-team blue">
+      <div class="name" id="scoreNameBlue">BENJY</div>
+      <div class="runs" id="scoreBlue">0</div>
+    </div>
+    <div class="score-team red">
+      <div class="name" id="scoreNameRed">ELLIE</div>
+      <div class="runs" id="scoreRed">0</div>
+    </div>
+    <div class="score-mid">
+      <div class="outs">
+        BALLS
+        <div class="dots">
+          <div class="out-dot ball-dot" id="ball0"></div>
+          <div class="out-dot ball-dot" id="ball1"></div>
+          <div class="out-dot ball-dot" id="ball2"></div>
+          <div class="out-dot ball-dot" id="ball3"></div>
+        </div>
+      </div>
+      <div class="outs">
+        STRIKES
+        <div class="dots">
+          <div class="out-dot strike-dot" id="strike0"></div>
+          <div class="out-dot strike-dot" id="strike1"></div>
+          <div class="out-dot strike-dot" id="strike2"></div>
+        </div>
+      </div>
+      <div class="outs">
+        OUTS
+        <div class="dots">
+          <div class="out-dot" id="out0"></div>
+          <div class="out-dot" id="out1"></div>
+          <div class="out-dot" id="out2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lineups">
+    <div class="lineup-team" id="lineupTeamBlue">
+      <div class="lineup-title blue" id="lineupTitleBlue">TEAM BENJY</div>
+      <ol class="lineup-list" id="lineupBlue"></ol>
+    </div>
+    <div class="lineup-team" id="lineupTeamRed">
+      <div class="lineup-title red" id="lineupTitleRed">TEAM ELLIE</div>
+      <ol class="lineup-list" id="lineupRed"></ol>
+    </div>
+  </div>
+</div>
+
+<div class="game-main">
+<div class="stands" id="stands">
+  <div class="press-box">
+    <div class="press-window">
+      <div class="press-reporter"></div>
+      <div class="press-reporter"></div>
+      <div class="press-reporter"></div>
+    </div>
+    <div class="press-label">PRESS</div>
+  </div>
+</div>
+<div class="field">
+  <svg class="fence" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <path d="M16,9 Q50,4 84,9" />
+  </svg>
+  <div class="fence-label">HOME RUN</div>
+  <div class="dugout blue">
+    <div class="dugout-roof"></div>
+    <div class="dugout-label" id="dugoutLabelBlue">TEAM BENJY</div>
+    <div class="dugout-bench">
+      <div class="bench-fan"><div class="fan-head"></div><div class="fan-body dugout-blue"></div></div>
+      <div class="bench-fan"><div class="fan-head"></div><div class="fan-body dugout-blue"></div></div>
+    </div>
+  </div>
+  <div class="dugout red">
+    <div class="dugout-roof"></div>
+    <div class="dugout-label" id="dugoutLabelRed">TEAM ELLIE</div>
+    <div class="dugout-bench">
+      <div class="bench-fan"><div class="fan-head"></div><div class="fan-body dugout-red"></div></div>
+      <div class="bench-fan"><div class="fan-head"></div><div class="fan-body dugout-red"></div></div>
+    </div>
+  </div>
+  <div class="fielder left" id="fielderLeft"><div class="runner-head"></div><div class="runner-torso"></div><div class="position-tag">LF</div></div>
+  <div class="fielder center" id="fielderCenter"><div class="runner-head"></div><div class="runner-torso"></div><div class="position-tag">CF</div></div>
+  <div class="fielder right" id="fielderRight"><div class="runner-head"></div><div class="runner-torso"></div><div class="position-tag">RF</div></div>
+  <div class="infield"></div>
+  <div class="base first" id="baseFirst"></div>
+  <div class="base second" id="baseSecond"></div>
+  <div class="base third" id="baseThird"></div>
+  <div class="base home"></div>
+  <div class="catcher" id="catcherFigure"><div class="catcher-body"><div class="runner-head"></div><div class="runner-torso"></div><div class="catcher-glove"></div></div><div class="position-tag">SAM - C</div></div>
+  <div class="runner first" id="runnerFirst"><div class="runner-head"></div><div class="runner-torso"></div><div class="runner-legs"><div class="runner-leg left"></div><div class="runner-leg right"></div></div></div>
+  <div class="runner second" id="runnerSecond"><div class="runner-head"></div><div class="runner-torso"></div><div class="runner-legs"><div class="runner-leg left"></div><div class="runner-leg right"></div></div></div>
+  <div class="runner third" id="runnerThird"><div class="runner-head"></div><div class="runner-torso"></div><div class="runner-legs"><div class="runner-leg left"></div><div class="runner-leg right"></div></div></div>
+  <div class="mound"></div>
+
+  <div class="player pos-pitcher" id="pitcherFigure">
+    <div class="speech-bubble" id="pitcherBubble"></div>
+    <div class="charge-meter" id="chargeMeter"><div class="charge-fill" id="chargeFill"></div></div>
+    <div class="body-wrap">
+      <div class="arm left"></div>
+      <div class="arm right"></div>
+      <div class="head">
+        <div class="hat"></div>
+        <div class="bangs"></div>
+        <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+        <div class="mouth"></div>
+        <div class="hair-down left"></div>
+        <div class="hair-down right"></div>
+      </div>
+      <div class="torso"></div>
+      <div class="legs"><div class="leg"></div><div class="leg"></div></div>
+    </div>
+    <div class="label" id="pitcherName">BENJY</div>
+    <div class="position-tag">PITCHER</div>
+  </div>
+
+  <div class="player pos-batter" id="batterFigure">
+    <div class="speech-bubble" id="batterBubble"></div>
+    <div class="body-wrap">
+      <div class="bat"></div>
+      <div class="arm left"></div>
+      <div class="arm right"></div>
+      <div class="head">
+        <div class="hat"></div>
+        <div class="bangs"></div>
+        <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+        <div class="mouth"></div>
+        <div class="hair-down left"></div>
+        <div class="hair-down right"></div>
+      </div>
+      <div class="torso"></div>
+      <div class="legs"><div class="leg"></div><div class="leg"></div></div>
+    </div>
+    <div class="label" id="batterName">ELLIE</div>
+    <div class="position-tag">AT BAT</div>
+  </div>
+
+  <div class="ball" id="ball"></div>
+
+  <div class="winner-banner" id="winnerBanner">
+    <div class="winner-trophy">🏆</div>
+    <div class="winner-text" id="winnerText"></div>
+    <div class="winner-sub">Press Restart Game to play again!</div>
+  </div>
+</div>
+
+<div class="result-flash" id="resultFlash">&nbsp;</div>
+<div class="status" id="statusLine">Pitcher: hold the RIGHT SHIFT key to pitch!</div>
+
+<div class="controls">
+  <div class="key-hint" id="pitchHint">
+    <span id="pitchHintName">BENJY</span> pitches: <kbd>Right Shift</kbd>
+  </div>
+  <div class="key-hint" id="batHint">
+    <span id="batHintName">ELLIE</span> swings: <kbd>Left Shift</kbd>
+  </div>
+</div>
+
+<button class="restart-btn" id="restartBtn">Restart Game</button>
+
+<button class="settings-toggle" id="settingsToggle">⚙ Game Settings</button>
+<div class="settings-form" id="settingsForm">
+  <div class="settings-team">
+    <div class="settings-team-title blue">Blue Team</div>
+    <label>Team name
+      <input type="text" id="teamNameBlueInput" maxlength="20">
+    </label>
+    <label>Player name
+      <input type="text" id="playerNameBlueInput" maxlength="14">
+    </label>
+    <label>Team color
+      <input type="color" id="teamColorBlueInput">
+    </label>
+  </div>
+  <div class="settings-team">
+    <div class="settings-team-title red">Red Team</div>
+    <label>Team name
+      <input type="text" id="teamNameRedInput" maxlength="20">
+    </label>
+    <label>Player name
+      <input type="text" id="playerNameRedInput" maxlength="14">
+    </label>
+    <label>Team color
+      <input type="color" id="teamColorRedInput">
+    </label>
+  </div>
+  <button class="apply-settings-btn" id="applySettingsBtn">Apply Settings</button>
+</div>
+</div>
+
+<div class="history-panel">
+  <h2 class="history-title">Game Log</h2>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<script>
+(function () {
+  const PLAYERS = {
+    blue: { name: 'BENJY', className: 'tag-blue', hintClass: 'blue' },
+    red:  { name: 'ELLIE', className: 'tag-red',  hintClass: 'red' },
+  };
+  // team display name shown on the lineup card, dugout, and game log --
+  // configurable separately from the real player's own name
+  let TEAM_NAMES = { blue: 'TEAM BENJY', red: 'TEAM ELLIE' };
+
+  // batting order for each team -- Ellie and Benjy always lead off their own
+  // team (a full 9-player lineup). Real batter/swing control still belongs
+  // to whichever real player is up (Benjy for blue, Ellie for red); the
+  // lineup just tracks whose turn it narratively is and rotates after every
+  // plate appearance that ends. The other 8 spots per team are randomly
+  // drawn from this pool fresh each game, so the roster differs every time.
+  const NAME_POOL = [
+    'Max', 'Leo', 'Sam', 'Tyler', 'Jake', 'Noah', 'Liam', 'Mason', 'Owen',
+    'Ethan', 'Lucas', 'Mia', 'Zoe', 'Ava', 'Grace', 'Ella', 'Ruby', 'Nora',
+    'Ivy', 'Chloe', 'Maya', 'Finn', 'Milo', 'Stella',
+  ];
+  const LINEUPS = { blue: [], red: [] };
+  let lineupIndex = { blue: 0, red: 0 };
+
+  function shuffled(array) {
+    const copy = array.slice();
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  // flavor-only fielding position shown next to each lineup slot (slot 0,
+  // the team leader, is always listed as the pitcher to match their actual
+  // on-field role when their team is fielding)
+  const LINEUP_POSITIONS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+
+  function generateLineups() {
+    const names = shuffled(NAME_POOL);
+    LINEUPS.blue = [PLAYERS.blue.name, ...names.slice(0, 8).map((n) => n.toUpperCase())];
+    LINEUPS.red = [PLAYERS.red.name, ...names.slice(8, 16).map((n) => n.toUpperCase())];
+    renderLineupList('blue');
+    renderLineupList('red');
+  }
+
+  function renderLineupList(team) {
+    const ol = document.getElementById(team === 'blue' ? 'lineupBlue' : 'lineupRed');
+    ol.innerHTML = '';
+    lineupListEls[team] = LINEUPS[team].map((name, i) => {
+      const li = document.createElement('li');
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'lineup-name';
+      nameSpan.textContent = (i + 1) + '. ' + name;
+      const posSpan = document.createElement('span');
+      posSpan.className = 'lineup-pos';
+      posSpan.textContent = LINEUP_POSITIONS[i];
+      li.appendChild(nameSpan);
+      li.appendChild(posSpan);
+      ol.appendChild(li);
+      return li;
+    });
+  }
+
+  function currentBatterName(team) {
+    return LINEUPS[team][lineupIndex[team]];
+  }
+
+  function advanceLineup(team) {
+    lineupIndex[team] = (lineupIndex[team] + 1) % LINEUPS[team].length;
+  }
+
+  // pitchingTeam is currently pitching (RIGHT key), battingTeam is currently up (LEFT key)
+  let pitchingTeam = 'blue';
+  let battingTeam = 'red';
+
+  let outs = 0;
+  let strikes = 0;
+  let balls = 0;
+  let bases = [false, false, false]; // 1st, 2nd, 3rd
+  let scores = { blue: 0, red: 0 };
+  const WIN_SCORE = 20;
+  let gameOver = false;
+
+  // pitch state
+  let pitchActive = false;   // ball is mid-flight
+  let pitchResolved = true;  // waiting for next pitch
+  let hitWindowStart = 0;
+  let hitWindowEnd = 0;
+  let pitchStartTime = 0;
+  let pitchTimeoutId = null;
+
+  // pitch charging: hold RIGHT to wind up, release to throw.
+  // Speed is capped (MAX_CHARGE_MS) so a held pitch is fast but never unhittable.
+  const SLOW_PITCH_MS = 1500;
+  const FAST_PITCH_MS = 650;
+  // pitches faster than this are "in the zone": taking one (not swinging)
+  // is a called strike. Slower pitches are easy takes, called balls.
+  const PITCH_ZONE_MS = (SLOW_PITCH_MS + FAST_PITCH_MS) / 2;
+  let pitchIsFast = false;
+  const MAX_CHARGE_MS = 900;
+  let isCharging = false;
+  let chargeStartTime = 0;
+  let chargeRAF = null;
+
+  const scoreBlueEl = document.getElementById('scoreBlue');
+  const scoreRedEl = document.getElementById('scoreRed');
+  const outDots = [document.getElementById('out0'), document.getElementById('out1'), document.getElementById('out2')];
+  const strikeDots = [document.getElementById('strike0'), document.getElementById('strike1'), document.getElementById('strike2')];
+  const ballDots = [document.getElementById('ball0'), document.getElementById('ball1'), document.getElementById('ball2'), document.getElementById('ball3')];
+  const baseFirst = document.getElementById('baseFirst');
+  const baseSecond = document.getElementById('baseSecond');
+  const baseThird = document.getElementById('baseThird');
+  const runners = [document.getElementById('runnerFirst'), document.getElementById('runnerSecond'), document.getElementById('runnerThird')];
+  const catcherFigure = document.getElementById('catcherFigure');
+  const lineupTeamEls = { blue: document.getElementById('lineupTeamBlue'), red: document.getElementById('lineupTeamRed') };
+  const lineupTitleEls = { blue: document.getElementById('lineupTitleBlue'), red: document.getElementById('lineupTitleRed') };
+  const dugoutLabelEls = { blue: document.getElementById('dugoutLabelBlue'), red: document.getElementById('dugoutLabelRed') };
+  const scoreNameEls = { blue: document.getElementById('scoreNameBlue'), red: document.getElementById('scoreNameRed') };
+  const lineupListEls = {
+    blue: [],
+    red: [],
+  };
+  const FIELDER_HOMES = [
+    { el: document.getElementById('fielderLeft'), x: 25, y: 16 },
+    { el: document.getElementById('fielderCenter'), x: 50, y: 10 },
+    { el: document.getElementById('fielderRight'), x: 75, y: 16 },
+  ];
+  const pitcherFigure = document.getElementById('pitcherFigure');
+  const batterFigure = document.getElementById('batterFigure');
+  const chargeMeter = document.getElementById('chargeMeter');
+  const chargeFill = document.getElementById('chargeFill');
+  const pitcherArmRight = pitcherFigure.querySelector('.arm.right');
+  const pitcherTorso = pitcherFigure.querySelector('.torso');
+  const pitcherBubble = document.getElementById('pitcherBubble');
+  const batterBubble = document.getElementById('batterBubble');
+  const pitcherName = document.getElementById('pitcherName');
+  const batterName = document.getElementById('batterName');
+  const pitchHint = document.getElementById('pitchHint');
+  const batHint = document.getElementById('batHint');
+  const pitchHintName = document.getElementById('pitchHintName');
+  const batHintName = document.getElementById('batHintName');
+  const ball = document.getElementById('ball');
+  const statusLine = document.getElementById('statusLine');
+  const resultFlash = document.getElementById('resultFlash');
+  const historyList = document.getElementById('historyList');
+  const winnerBanner = document.getElementById('winnerBanner');
+  const winnerText = document.getElementById('winnerText');
+
+  function render() {
+    scoreBlueEl.textContent = scores.blue;
+    scoreRedEl.textContent = scores.red;
+    outDots.forEach((dot, i) => dot.classList.toggle('filled', i < outs));
+    strikeDots.forEach((dot, i) => dot.classList.toggle('filled', i < strikes));
+    ballDots.forEach((dot, i) => dot.classList.toggle('filled', i < balls));
+    baseFirst.classList.toggle('occupied', bases[0]);
+    baseSecond.classList.toggle('occupied', bases[1]);
+    baseThird.classList.toggle('occupied', bases[2]);
+
+    const pitcher = PLAYERS[pitchingTeam];
+    const batter = PLAYERS[battingTeam];
+
+    // runners on base belong to whichever team is currently batting
+    runners.forEach((runner, i) => {
+      runner.classList.toggle('visible', bases[i]);
+      runner.classList.remove('tag-blue', 'tag-red');
+      runner.classList.add(batter.className);
+    });
+
+    // outfielders and the catcher belong to whichever team is currently pitching (on defense)
+    FIELDER_HOMES.forEach(({ el }) => {
+      el.classList.remove('tag-blue', 'tag-red');
+      el.classList.add(pitcher.className);
+    });
+    catcherFigure.classList.remove('tag-blue', 'tag-red');
+    catcherFigure.classList.add(pitcher.className);
+
+    // Only swap the team-color class here -- overwriting the whole
+    // className would wipe out the transient 'pitching'/'swinging'
+    // animation classes before the browser gets a chance to paint them.
+    pitcherFigure.classList.remove('tag-blue', 'tag-red');
+    pitcherFigure.classList.add(pitcher.className);
+    batterFigure.classList.remove('tag-blue', 'tag-red');
+    batterFigure.classList.add(batter.className);
+    pitcherName.textContent = pitcher.name;
+    batterName.textContent = currentBatterName(battingTeam);
+
+    // Benjy bats lefty; Ellie is a girl -- follow whichever figure they're
+    // currently occupying since pitcher/batter roles swap between them.
+    batterFigure.classList.toggle('lefty', battingTeam === 'blue');
+    pitcherFigure.classList.toggle('girl', pitchingTeam === 'red');
+    batterFigure.classList.toggle('girl', battingTeam === 'red');
+
+    pitchHint.className = 'key-hint ' + pitcher.hintClass;
+    batHint.className = 'key-hint ' + batter.hintClass;
+    pitchHintName.textContent = pitcher.name;
+    batHintName.textContent = batter.name;
+
+    ['blue', 'red'].forEach((team) => {
+      lineupTeamEls[team].classList.toggle('active', battingTeam === team);
+      lineupListEls[team].forEach((li, i) => {
+        li.classList.toggle('current', i === lineupIndex[team]);
+      });
+      lineupTitleEls[team].textContent = TEAM_NAMES[team];
+      dugoutLabelEls[team].textContent = TEAM_NAMES[team];
+      scoreNameEls[team].textContent = PLAYERS[team].name;
+    });
+
+    checkForWin();
+  }
+
+  function checkForWin() {
+    if (gameOver) return;
+    if (scores.blue < WIN_SCORE && scores.red < WIN_SCORE) return;
+
+    gameOver = true;
+    const winningTeam = scores.blue >= WIN_SCORE ? 'blue' : 'red';
+    const winner = PLAYERS[winningTeam];
+
+    clearTimeout(pitchTimeoutId);
+    clearTimeout(jokeTimeoutId);
+    hideAllBubbles();
+    pitchActive = false;
+    isCharging = false;
+    cancelAnimationFrame(chargeRAF);
+    pitcherFigure.classList.remove('charging', 'pitching');
+    chargeMeter.classList.remove('active');
+    ball.style.display = 'none';
+
+    winnerText.textContent = winner.name + ' WINS! ' + scores.blue + ' - ' + scores.red;
+    winnerText.style.color = winningTeam === 'blue' ? 'var(--blue)' : 'var(--red)';
+    winnerBanner.classList.add('visible');
+    setStatus(winner.name + ' wins with ' + scores[winningTeam] + ' runs!');
+    logEvent('🏆 ' + winner.name + ' WINS! Final score ' + scores.blue + ' - ' + scores.red);
+  }
+
+  function setStatus(text) {
+    statusLine.textContent = text;
+  }
+
+  function flash(text, cls) {
+    resultFlash.textContent = text;
+    resultFlash.className = 'result-flash ' + (cls || '');
+    setTimeout(() => {
+      if (resultFlash.textContent === text) {
+        resultFlash.textContent = ' ';
+        resultFlash.className = 'result-flash';
+      }
+    }, 1200);
+    logEvent(currentBatterName(battingTeam) + ' (' + TEAM_NAMES[battingTeam] + '): ' + text);
+  }
+
+  function logEvent(text) {
+    const entry = document.createElement('div');
+    entry.className = 'history-entry';
+    entry.textContent = text;
+    historyList.insertBefore(entry, historyList.firstChild);
+    while (historyList.children.length > 50) {
+      historyList.removeChild(historyList.lastChild);
+    }
+  }
+
+  function startPitch(duration) {
+    if (!pitchResolved) return;
+    pitchResolved = false;
+    pitchActive = true;
+    pitchIsFast = duration <= PITCH_ZONE_MS;
+
+    const windowLen = 220; // ms of hittable window near the plate
+    hitWindowEnd = duration;
+    hitWindowStart = duration - windowLen;
+    pitchStartTime = performance.now();
+
+    const speedLabel = duration <= FAST_PITCH_MS + 150 ? ' Fastball!' :
+                        duration >= SLOW_PITCH_MS - 150 ? ' Slow pitch...' : '';
+    setStatus(currentBatterName(battingTeam) + ', get ready to swing!' + speedLabel);
+
+    animatePitcher(duration);
+
+    ball.style.display = 'block';
+    ball.style.transition = 'none';
+    ball.style.left = '50%';
+    ball.style.top = '55%';
+    // force reflow so transition applies
+    void ball.offsetWidth;
+    ball.style.transition = 'left ' + duration + 'ms linear, top ' + duration + 'ms linear';
+    ball.style.left = '50%';
+    ball.style.top = '91%';
+
+    pitchTimeoutId = setTimeout(() => {
+      if (pitchActive) {
+        // no swing at all -> taken pitch. Fast pitches are called strikes
+        // (right down the middle); slow pitches are called balls.
+        resolvePitch(false, pitchIsFast ? 'strike' : 'ball');
+      }
+    }, duration + 60);
+  }
+
+  function resolvePitch(isHit, callType) {
+    if (!pitchActive) return;
+    pitchActive = false;
+    clearTimeout(pitchTimeoutId);
+
+    if (isHit) {
+      const hitInfo = animateBallToOutfield();
+      if (!hitInfo.isHomerun) {
+        sendFielderToBall(hitInfo.targetX, hitInfo.targetY, hitInfo.flyMs, hitInfo.isCaught);
+      }
+      if (hitInfo.isCaught) {
+        handleCatch();
+      } else {
+        handleHit(hitInfo.isHomerun);
+      }
+    } else {
+      sendBallToCatcher();
+      if (callType === 'ball') {
+        handleBall();
+      } else {
+        handleMiss();
+      }
+    }
+
+    pitchResolved = true;
+  }
+
+  function sendBallToCatcher() {
+    // whether swung-and-missed or taken, an unhit pitch sails past the
+    // batter to the catcher waiting behind home plate
+    ball.style.transition = 'none';
+    ball.style.left = '50%';
+    ball.style.top = '91%';
+    void ball.offsetWidth;
+
+    const catchMs = 220;
+    ball.style.transition = 'left ' + catchMs + 'ms ease-out, top ' + catchMs + 'ms ease-out';
+    ball.style.left = '50%';
+    ball.style.top = '97%';
+
+    setTimeout(() => {
+      ball.style.display = 'none';
+      catcherFigure.classList.remove('catching');
+      void catcherFigure.offsetWidth;
+      catcherFigure.classList.add('catching');
+      setTimeout(() => catcherFigure.classList.remove('catching'), 350);
+    }, catchMs);
+  }
+
+  // distFactor 1.0 lands exactly on the outfield fence (see the dashed fence
+  // line in the HTML, which is drawn using these same deepLeft/Center/Right
+  // points); anything past that clears the fence for a home run.
+  const HOMERUN_DIST = 1.0;
+  // invisible radius (in field-percentage units) around each fielder's home
+  // spot -- land the ball inside it and that fielder makes the catch for an
+  // out; land it anywhere else (even nearby) and it's a hit.
+  const CATCH_RADIUS = 14;
+
+  function animateBallToOutfield() {
+    // ball is essentially at home plate when the swing connects; send it
+    // out to a random spot in fair territory, somewhere between first and
+    // third base, with a random distance so hits vary between shallow,
+    // deep, and occasionally clearing the fence for a home run.
+    ball.style.transition = 'none';
+    ball.style.left = '50%';
+    ball.style.top = '91%';
+    void ball.offsetWidth;
+
+    const t = Math.random();
+    const deepLeft = { x: 16, y: 9 };   // past third base
+    const deepCenter = { x: 50, y: 4 }; // past second base
+    const deepRight = { x: 84, y: 9 };  // past first base
+    const bx = (1 - t) * (1 - t) * deepLeft.x + 2 * (1 - t) * t * deepCenter.x + t * t * deepRight.x;
+    const by = (1 - t) * (1 - t) * deepLeft.y + 2 * (1 - t) * t * deepCenter.y + t * t * deepRight.y;
+
+    const homeX = 50, homeY = 91;
+    const distFactor = 0.5 + Math.random() * 0.65; // shallow hit up to well past the fence
+    const isHomerun = distFactor >= HOMERUN_DIST;
+    const targetX = homeX + (bx - homeX) * distFactor;
+    const targetY = homeY + (by - homeY) * distFactor;
+
+    // it's a catch only if the ball actually lands inside a fielder's
+    // invisible catch radius -- everywhere else (gaps, over their heads,
+    // short of them) is a hit. Home runs always clear everyone.
+    let isCaught = false;
+    if (!isHomerun) {
+      isCaught = FIELDER_HOMES.some((home) => Math.hypot(home.x - targetX, home.y - targetY) <= CATCH_RADIUS);
+    }
+
+    const flyMs = 500 + Math.random() * 300;
+    ball.style.transition = 'left ' + flyMs + 'ms ease-out, top ' + flyMs + 'ms ease-out';
+    ball.style.left = targetX + '%';
+    ball.style.top = targetY + '%';
+
+    setTimeout(() => { ball.style.display = 'none'; }, flyMs + 300);
+    return { isHomerun, isCaught, targetX, targetY, flyMs };
+  }
+
+  function sendFielderToBall(targetX, targetY, delayMs, isCaught) {
+    // the nearest outfielder automatically jogs over once the ball lands,
+    // fields it (or catches it for an out), then jogs back home
+    let nearest = FIELDER_HOMES[0];
+    let bestDist = Infinity;
+    FIELDER_HOMES.forEach((home) => {
+      const d = Math.hypot(home.x - targetX, home.y - targetY);
+      if (d < bestDist) { bestDist = d; nearest = home; }
+    });
+
+    setTimeout(() => {
+      nearest.el.style.left = targetX + '%';
+      nearest.el.style.top = targetY + '%';
+      if (isCaught) {
+        nearest.el.classList.remove('catching');
+        void nearest.el.offsetWidth;
+        nearest.el.classList.add('catching');
+      }
+      setTimeout(() => {
+        nearest.el.classList.remove('catching');
+        nearest.el.style.left = nearest.x + '%';
+        nearest.el.style.top = nearest.y + '%';
+      }, 700);
+    }, delayMs);
+  }
+
+  function handleHit(isHomerun) {
+    strikes = 0;
+    balls = 0;
+    advanceLineup(battingTeam);
+
+    if (isHomerun) {
+      const runs = bases.filter(Boolean).length + 1; // every runner plus the batter scores
+      bases = [false, false, false];
+      scores[battingTeam] += runs;
+      if (runs >= 4) {
+        flash('GRAND SLAM! +4 RUNS!', 'result-homerun');
+      } else {
+        flash('HOME RUN! +' + runs + ' RUN' + (runs > 1 ? 'S' : '') + '!', 'result-homerun');
+      }
+      setStatus(PLAYERS[pitchingTeam].name + ', hold RIGHT SHIFT to pitch again!');
+      render();
+      return;
+    }
+
+    // advance existing runners, then place batter on first
+    let runsScored = 0;
+    if (bases[2]) runsScored++;       // runner on 3rd scores
+    bases[2] = bases[1];              // 2nd -> 3rd
+    bases[1] = bases[0];              // 1st -> 2nd
+    bases[0] = true;                  // batter -> 1st
+
+    if (runsScored > 0) {
+      scores[battingTeam] += runsScored;
+      flash('HIT! +' + runsScored + ' RUN' + (runsScored > 1 ? 'S' : '') + '!', 'result-run');
+    } else {
+      flash('HIT!', 'result-hit');
+    }
+    setStatus(PLAYERS[pitchingTeam].name + ', hold RIGHT SHIFT to pitch again!');
+    render();
+  }
+
+  function handleCatch() {
+    strikes = 0;
+    balls = 0;
+    recordOut('CAUGHT! OUT!');
+  }
+
+  function handleMiss() {
+    strikes++;
+    if (strikes >= 3) {
+      strikes = 0;
+      balls = 0;
+      recordOut('STRIKE 3! OUT!');
+    } else {
+      flash('STRIKE ' + strikes + '!', 'result-out');
+      checkFullCount();
+      setStatus(PLAYERS[pitchingTeam].name + ', hold RIGHT SHIFT to pitch again!');
+      render();
+    }
+  }
+
+  function handleBall() {
+    balls++;
+    if (balls >= 4) {
+      balls = 0;
+      strikes = 0;
+      walkBatter();
+    } else {
+      flash('BALL ' + balls + '!', 'result-ball');
+      checkFullCount();
+      setStatus(PLAYERS[pitchingTeam].name + ', hold RIGHT SHIFT to pitch again!');
+      render();
+    }
+  }
+
+  function checkFullCount() {
+    if (balls === 3 && strikes === 2) {
+      logEvent('⚾ FULL COUNT! 3 balls, 2 strikes -- next pitch decides it!');
+    }
+  }
+
+  function walkBatter() {
+    advanceLineup(battingTeam);
+    // force runners ahead of the batter up one base, only if that base is occupied
+    let runsScored = 0;
+    if (bases[0]) {
+      if (bases[1]) {
+        if (bases[2]) runsScored++;     // runner on 3rd is forced home
+        bases[2] = true;
+      }
+      bases[1] = true;
+    }
+    bases[0] = true;
+
+    if (runsScored > 0) {
+      scores[battingTeam] += runsScored;
+      flash('WALK! +' + runsScored + ' RUN' + (runsScored > 1 ? 'S' : '') + '!', 'result-run');
+    } else {
+      flash('WALK!', 'result-ball');
+    }
+    setStatus(PLAYERS[pitchingTeam].name + ', hold RIGHT SHIFT to pitch again!');
+    render();
+  }
+
+  function recordOut(message) {
+    advanceLineup(battingTeam);
+    outs++;
+    flash(message, 'result-out');
+
+    if (outs >= 3) {
+      setTimeout(() => {
+        swapSides();
+      }, 900);
+      setStatus('3 outs! Switching sides...');
+      logEvent('-- 3 outs, ' + PLAYERS[battingTeam].name + '\'s side is retired --');
+    } else {
+      setStatus(PLAYERS[pitchingTeam].name + ', hold RIGHT SHIFT to pitch again!');
+    }
+    render();
+  }
+
+  function swapSides() {
+    if (gameOver) return;
+    outs = 0;
+    strikes = 0;
+    balls = 0;
+    bases = [false, false, false];
+    const temp = pitchingTeam;
+    pitchingTeam = battingTeam;
+    battingTeam = temp;
+    setStatus(PLAYERS[pitchingTeam].name + ' is pitching now! Hold RIGHT SHIFT to pitch.');
+    render();
+  }
+
+  function animatePitcher(pitchDurationMs) {
+    // faster pitches get a quicker, snappier throwing motion
+    const throwMs = Math.max(220, Math.min(500, pitchDurationMs * 0.4));
+    pitcherArmRight.style.animationDuration = throwMs + 'ms';
+    pitcherTorso.style.animationDuration = throwMs + 'ms';
+    pitcherFigure.classList.remove('pitching');
+    void pitcherFigure.offsetWidth; // restart animation if triggered again quickly
+    pitcherFigure.classList.add('pitching');
+    setTimeout(() => pitcherFigure.classList.remove('pitching'), throwMs + 50);
+  }
+
+  function animateBatter() {
+    batterFigure.classList.remove('swinging');
+    void batterFigure.offsetWidth;
+    batterFigure.classList.add('swinging');
+    setTimeout(() => batterFigure.classList.remove('swinging'), 350);
+  }
+
+  function resetGame() {
+    historyList.innerHTML = '';
+    logEvent('-- New game started --');
+    pitchingTeam = 'blue';
+    battingTeam = 'red';
+    outs = 0;
+    strikes = 0;
+    balls = 0;
+    bases = [false, false, false];
+    scores = { blue: 0, red: 0 };
+    lineupIndex = { blue: 0, red: 0 };
+    generateLineups();
+    gameOver = false;
+    winnerBanner.classList.remove('visible');
+    pitchActive = false;
+    pitchResolved = true;
+    clearTimeout(pitchTimeoutId);
+    isCharging = false;
+    cancelAnimationFrame(chargeRAF);
+    pitcherFigure.classList.remove('charging', 'pitching');
+    chargeMeter.classList.remove('active');
+    chargeFill.style.width = '0%';
+    ball.style.display = 'none';
+    resultFlash.textContent = ' ';
+    resultFlash.className = 'result-flash';
+    FIELDER_HOMES.forEach((home) => {
+      home.el.style.left = home.x + '%';
+      home.el.style.top = home.y + '%';
+    });
+    catcherFigure.classList.remove('catching');
+    hideAllBubbles();
+    scheduleNextJoke();
+    setStatus('Pitcher: hold the RIGHT SHIFT key to pitch!');
+    render();
+  }
+
+  function updateChargeMeter() {
+    if (!isCharging) return;
+    const held = performance.now() - chargeStartTime;
+    const pct = Math.min(held / MAX_CHARGE_MS, 1) * 100;
+    chargeFill.style.width = pct + '%';
+    chargeRAF = requestAnimationFrame(updateChargeMeter);
+  }
+
+  // ---- players randomly chat and take turns telling each other jokes ----
+  const JOKES = [
+    { setup: 'Why did the baseball player bring string to the game?', punchline: 'So he could tie the score!' },
+    { setup: "Why can't you play baseball in the jungle?", punchline: 'Too many cheetahs!' },
+    { setup: 'Why was the baseball stadium so cool?', punchline: 'It was full of fans!' },
+    { setup: 'What do you call a pitcher who never gives up a hit?', punchline: 'A hero!' },
+    { setup: 'Why did the coach go to the bank?', punchline: 'To get his bats cashed!' },
+    { setup: 'What position did the ghost play?', punchline: 'Sh-h-hortstop!' },
+    { setup: 'Why did the baseball player go on a date?', punchline: 'Because he was a real catch!' },
+    { setup: 'Why do baseball players make great detectives?', punchline: "They're always watching for a steal!" },
+    { setup: 'Why was the baseball glove so sad?', punchline: 'It had a hole in its heart!' },
+    { setup: 'What do you call it when a dinosaur hits a home run?', punchline: 'A dino-score!' },
+    { setup: 'Why did the baseball team hire a tailor?', punchline: 'To make sure they had a perfect fit!' },
+    { setup: 'Why did the outfielder bring a ladder to the game?', punchline: 'He wanted to catch a fly ball!' },
+    { setup: "Why couldn't the baseball player hear the umpire?", punchline: 'There was too much static on the diamond!' },
+    { setup: 'What do you call a pig that plays baseball?', punchline: 'A pigtcher!' },
+    { setup: 'Why is it easy to fool a baseball player?', punchline: 'Because they always fall for the curveball!' },
+    { setup: 'Why did the baseball rollaway from the plate?', punchline: 'It wanted to steal a base!' },
+    { setup: 'What do you call a slow baseball player?', punchline: 'A snail-fielder!' },
+    { setup: 'Why did the baseball card go to school?', punchline: 'To improve its stats!' },
+    { setup: "Why don't baseball players ever get lost?", punchline: 'They always know how to get home!' },
+  ];
+  let jokeInitiator = 'pitcher'; // whose turn it is to start the next joke
+  let jokeTimeoutId = null;
+
+  function hideAllBubbles() {
+    pitcherBubble.classList.remove('visible');
+    batterBubble.classList.remove('visible');
+  }
+
+  function showBubble(el, text) {
+    el.textContent = text;
+    el.classList.add('visible');
+  }
+
+  function scheduleNextJoke() {
+    clearTimeout(jokeTimeoutId);
+    jokeTimeoutId = setTimeout(tellJoke, 3000 + Math.random() * 4000);
+  }
+
+  function tellJoke() {
+    // don't interrupt an in-progress pitch/charge/swing
+    if (!pitchResolved || isCharging) {
+      scheduleNextJoke();
+      return;
+    }
+    const joke = JOKES[Math.floor(Math.random() * JOKES.length)];
+    const tellerBubble = jokeInitiator === 'pitcher' ? pitcherBubble : batterBubble;
+    const replierBubble = jokeInitiator === 'pitcher' ? batterBubble : pitcherBubble;
+
+    showBubble(tellerBubble, joke.setup);
+    jokeTimeoutId = setTimeout(() => {
+      tellerBubble.classList.remove('visible');
+      showBubble(replierBubble, joke.punchline);
+      jokeTimeoutId = setTimeout(() => {
+        replierBubble.classList.remove('visible');
+        jokeInitiator = jokeInitiator === 'pitcher' ? 'batter' : 'pitcher';
+        scheduleNextJoke();
+      }, 2400);
+    }, 2400);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (gameOver) return;
+    if (e.code === 'ShiftRight') {
+      e.preventDefault();
+      if (pitchResolved && !isCharging) {
+        hideAllBubbles();
+        isCharging = true;
+        chargeStartTime = performance.now();
+        pitcherFigure.classList.add('charging');
+        chargeMeter.classList.add('active');
+        updateChargeMeter();
+      }
+    } else if (e.code === 'ShiftLeft') {
+      e.preventDefault();
+      hideAllBubbles();
+      animateBatter(); // always let the batter take a practice swing
+      if (pitchActive) {
+        const elapsed = performance.now() - pitchStartTime;
+        const isHit = elapsed >= hitWindowStart && elapsed <= hitWindowEnd;
+        resolvePitch(isHit, 'strike'); // a swing and a miss is always a strike
+      }
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (gameOver) return;
+    if (e.code === 'ShiftRight' && isCharging) {
+      e.preventDefault();
+      isCharging = false;
+      cancelAnimationFrame(chargeRAF);
+      pitcherFigure.classList.remove('charging');
+      chargeMeter.classList.remove('active');
+      chargeFill.style.width = '0%';
+
+      const held = Math.min(performance.now() - chargeStartTime, MAX_CHARGE_MS);
+      const speedPct = held / MAX_CHARGE_MS;
+      const duration = SLOW_PITCH_MS - (SLOW_PITCH_MS - FAST_PITCH_MS) * speedPct;
+      startPitch(duration);
+    }
+  });
+
+  document.getElementById('restartBtn').addEventListener('click', resetGame);
+
+  const settingsToggle = document.getElementById('settingsToggle');
+  const settingsForm = document.getElementById('settingsForm');
+  const teamNameBlueInput = document.getElementById('teamNameBlueInput');
+  const playerNameBlueInput = document.getElementById('playerNameBlueInput');
+  const teamColorBlueInput = document.getElementById('teamColorBlueInput');
+  const teamNameRedInput = document.getElementById('teamNameRedInput');
+  const playerNameRedInput = document.getElementById('playerNameRedInput');
+  const teamColorRedInput = document.getElementById('teamColorRedInput');
+
+  function openSettingsForm() {
+    teamNameBlueInput.value = TEAM_NAMES.blue;
+    playerNameBlueInput.value = PLAYERS.blue.name;
+    teamColorBlueInput.value = getComputedStyle(document.documentElement).getPropertyValue('--blue').trim();
+    teamNameRedInput.value = TEAM_NAMES.red;
+    playerNameRedInput.value = PLAYERS.red.name;
+    teamColorRedInput.value = getComputedStyle(document.documentElement).getPropertyValue('--red').trim();
+  }
+
+  settingsToggle.addEventListener('click', () => {
+    const opening = !settingsForm.classList.contains('open');
+    settingsForm.classList.toggle('open');
+    if (opening) openSettingsForm();
+  });
+
+  document.getElementById('applySettingsBtn').addEventListener('click', () => {
+    TEAM_NAMES.blue = (teamNameBlueInput.value.trim() || 'TEAM BENJY').toUpperCase();
+    PLAYERS.blue.name = (playerNameBlueInput.value.trim() || 'BENJY').toUpperCase();
+    document.documentElement.style.setProperty('--blue', teamColorBlueInput.value);
+
+    TEAM_NAMES.red = (teamNameRedInput.value.trim() || 'TEAM ELLIE').toUpperCase();
+    PLAYERS.red.name = (playerNameRedInput.value.trim() || 'ELLIE').toUpperCase();
+    document.documentElement.style.setProperty('--red', teamColorRedInput.value);
+
+    // the leadoff lineup slot is always the real player -- keep it in sync
+    LINEUPS.blue[0] = PLAYERS.blue.name;
+    LINEUPS.red[0] = PLAYERS.red.name;
+    renderLineupList('blue');
+    renderLineupList('red');
+
+    render();
+    settingsForm.classList.remove('open');
+  });
+
+  function renderCrowd() {
+    const shirtColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#ff85c0', '#ecf0f1'];
+    const stands = document.getElementById('stands');
+    const fanCount = 55;
+    for (let i = 0; i < fanCount; i++) {
+      const fan = document.createElement('div');
+      fan.className = 'fan';
+      fan.style.left = (Math.random() * 100) + '%';
+      fan.style.animationDelay = '-' + (Math.random() * 1.6).toFixed(2) + 's';
+      const head = document.createElement('div');
+      head.className = 'fan-head';
+      const body = document.createElement('div');
+      body.className = 'fan-body';
+      body.style.background = shirtColors[Math.floor(Math.random() * shirtColors.length)];
+      fan.appendChild(head);
+      fan.appendChild(body);
+      stands.appendChild(fan);
+    }
+  }
+
+  generateLineups();
+  logEvent('-- New game started --');
+  render();
+  scheduleNextJoke();
+  renderCrowd();
+})();
+</script>
+
+</body>
+</html>
