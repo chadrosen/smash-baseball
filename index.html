@@ -805,6 +805,19 @@
     font-size: 1.2rem;
     color: white;
     box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .key-hint:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+  }
+  .tap-hint {
+    font-size: 0.7rem;
+    font-weight: normal;
+    opacity: 0.8;
   }
   .key-hint.blue { background: var(--blue); }
   .key-hint.red { background: var(--red); }
@@ -1065,10 +1078,10 @@
 
 <div class="controls">
   <div class="key-hint" id="pitchHint">
-    <span id="pitchHintName">BENJY</span> pitches: <kbd>Right Shift</kbd>
+    <span id="pitchHintName">BENJY</span> pitches: <kbd>Right Shift</kbd> <span class="tap-hint">or tap</span>
   </div>
   <div class="key-hint" id="batHint">
-    <span id="batHintName">ELLIE</span> swings: <kbd>Left Shift</kbd>
+    <span id="batHintName">ELLIE</span> swings: <kbd>Left Shift</kbd> <span class="tap-hint">or tap</span>
   </div>
 </div>
 
@@ -1784,46 +1797,66 @@
     }, 2400);
   }
 
-  document.addEventListener('keydown', (e) => {
+  function startCharging() {
     if (gameOver) return;
+    if (pitchResolved && !isCharging) {
+      hideAllBubbles();
+      isCharging = true;
+      chargeStartTime = performance.now();
+      pitcherFigure.classList.add('charging');
+      chargeMeter.classList.add('active');
+      updateChargeMeter();
+    }
+  }
+
+  function releaseCharge() {
+    if (gameOver || !isCharging) return;
+    isCharging = false;
+    cancelAnimationFrame(chargeRAF);
+    pitcherFigure.classList.remove('charging');
+    chargeMeter.classList.remove('active');
+    chargeFill.style.width = '0%';
+
+    const held = Math.min(performance.now() - chargeStartTime, MAX_CHARGE_MS);
+    const speedPct = held / MAX_CHARGE_MS;
+    const duration = SLOW_PITCH_MS - (SLOW_PITCH_MS - FAST_PITCH_MS) * speedPct;
+    startPitch(duration);
+  }
+
+  function attemptSwing() {
+    if (gameOver) return;
+    hideAllBubbles();
+    animateBatter(); // always let the batter take a practice swing
+    if (pitchActive) {
+      const elapsed = performance.now() - pitchStartTime;
+      const isHit = elapsed >= hitWindowStart && elapsed <= hitWindowEnd;
+      resolvePitch(isHit, 'strike'); // a swing and a miss is always a strike
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
     if (e.code === 'ShiftRight') {
       e.preventDefault();
-      if (pitchResolved && !isCharging) {
-        hideAllBubbles();
-        isCharging = true;
-        chargeStartTime = performance.now();
-        pitcherFigure.classList.add('charging');
-        chargeMeter.classList.add('active');
-        updateChargeMeter();
-      }
+      startCharging();
     } else if (e.code === 'ShiftLeft') {
       e.preventDefault();
-      hideAllBubbles();
-      animateBatter(); // always let the batter take a practice swing
-      if (pitchActive) {
-        const elapsed = performance.now() - pitchStartTime;
-        const isHit = elapsed >= hitWindowStart && elapsed <= hitWindowEnd;
-        resolvePitch(isHit, 'strike'); // a swing and a miss is always a strike
-      }
+      attemptSwing();
     }
   });
 
   document.addEventListener('keyup', (e) => {
-    if (gameOver) return;
-    if (e.code === 'ShiftRight' && isCharging) {
+    if (e.code === 'ShiftRight') {
       e.preventDefault();
-      isCharging = false;
-      cancelAnimationFrame(chargeRAF);
-      pitcherFigure.classList.remove('charging');
-      chargeMeter.classList.remove('active');
-      chargeFill.style.width = '0%';
-
-      const held = Math.min(performance.now() - chargeStartTime, MAX_CHARGE_MS);
-      const speedPct = held / MAX_CHARGE_MS;
-      const duration = SLOW_PITCH_MS - (SLOW_PITCH_MS - FAST_PITCH_MS) * speedPct;
-      startPitch(duration);
+      releaseCharge();
     }
   });
+
+  // let the pitch/swing key-hint badges double as clickable/tappable
+  // buttons, so the game is playable on touch devices with no keyboard
+  pitchHint.addEventListener('pointerdown', (e) => { e.preventDefault(); startCharging(); });
+  pitchHint.addEventListener('pointerup', releaseCharge);
+  pitchHint.addEventListener('pointerleave', releaseCharge);
+  batHint.addEventListener('pointerdown', (e) => { e.preventDefault(); attemptSwing(); });
 
   document.getElementById('restartBtn').addEventListener('click', resetGame);
 
